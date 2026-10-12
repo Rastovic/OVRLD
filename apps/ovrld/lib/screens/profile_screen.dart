@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:ovrld_core/ovrld_core.dart';
 
 import '../data/models.dart';
@@ -156,6 +157,10 @@ class ProfileScreen extends StatelessWidget {
           ]),
           _Section('About', children: [
             InfoRow('Show walkthrough', '', onTap: () => showTour(context)),
+            InfoRow('Privacy policy', 'rastovic.github.io/ovrld/privacy', onTap: () async {
+              await Clipboard.setData(const ClipboardData(text: 'https://rastovic.github.io/ovrld/privacy/'));
+              if (context.mounted) toast(context, 'Link copied. Paste it in your browser.');
+            }),
             InfoRow('Version', '0.1.2'),
             InfoRow('Licences', '', onTap: () => showLicensePage(context: context, applicationName: 'OVRLD', applicationVersion: '0.1.2')),
           ]),
