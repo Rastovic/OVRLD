@@ -1,0 +1,47 @@
+name: ovrld
+description: OVRLD - log kg x reps, beat last time, plan the week.
+publish_to: none
+version: 0.1.2+3
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  ovrld_core: ^0.1.0
+  sqflite: ^2.4.1
+  path: ^1.9.0
+  path_provider: ^2.1.5
+  home_widget: ^0.9.4
+  flutter_local_notifications: ^19.4.2
+  share_plus: ^12.0.0
+  file_picker: ^8.1.7
+  timezone: ^0.10.1
+
+dev_dependencies:
+  flutter_lints: ^5.0.0
+  flutter_test:
+    sdk: flutter
+  sqflite_common_ffi: ^2.3.4
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/fonts/OFL-Archivo.txt
+    - assets/fonts/OFL-PlexMono.txt
+  fonts:
+    # One variable face (wdth 62-125, wght 100-900). Every weight and width
+    # on screen is a FontVariation of this single file.
+    - family: Archivo
+      fonts:
+        - asset: assets/fonts/Archivo.ttf
+    - family: PlexMono
+      fonts:
+        - asset: assets/fonts/IBMPlexMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/IBMPlexMono-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/IBMPlexMono-SemiBold.ttf
+          weight: 600

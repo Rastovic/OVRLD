@@ -1,0 +1,12 @@
+name: ovrld_workspace
+description: OVRLD - progressive-overload gym tracker, and the pure-Dart core it stands on.
+publish_to: none
+
+environment:
+  sdk: ^3.12.0
+
+# Native Dart pub workspace: `flutter pub get` here resolves every package
+# against one lockfile. Same shape as tideline/ and lockin/.
+workspace:
+  - packages/ovrld_core
+  - apps/ovrld

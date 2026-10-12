@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark from the first frame: the app is dark-only, so a white flash on
+     launch would be the one light thing it ever shows. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/ovrld_ink" />
+</layer-list>
