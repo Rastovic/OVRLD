@@ -36,7 +36,10 @@ class WeekScreen extends StatelessWidget {
                 onTap: () => _plans(context),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Text('PLAN: ${plan?.name.toUpperCase() ?? 'NONE'} ▾', style: mono(11, color: Tone.bone, weight: FontWeight.w500)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text('PLAN: ${plan?.name.toUpperCase() ?? 'NONE'}', style: mono(11, color: Tone.bone, weight: FontWeight.w500)),
+                    const Icon(Icons.expand_more, size: 16, color: Tone.bone),
+                  ]),
                 ),
               ),
             ]),
@@ -236,8 +239,19 @@ class _DayRow extends StatelessWidget {
         decoration: const BoxDecoration(border: Border(top: BorderSide(color: Tone.line))),
         child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
           SizedBox(
-            width: 42,
-            child: Text('${today ? '▸' : ''}${weekdayShort[index]}', style: mono(10.5, color: today ? Tone.bone : Tone.mute, weight: today ? FontWeight.w600 : FontWeight.w400)),
+            width: 46,
+            child: Row(children: [
+              Flexible(
+                child: Text(weekdayShort[index], maxLines: 1, overflow: TextOverflow.clip,
+                    style: mono(10.5, color: today ? Tone.bone : Tone.mute, weight: today ? FontWeight.w600 : FontWeight.w400)),
+              ),
+              if (today) Container(
+                width: 5,
+                height: 5,
+                margin: const EdgeInsets.only(left: 4),
+                decoration: const BoxDecoration(color: Tone.bone, shape: BoxShape.circle),
+              ),
+            ]),
           ),
           Expanded(
             child: VaryText(
@@ -378,7 +392,7 @@ class _PastWeek extends StatelessWidget {
         for (final c in w.days) Padding(padding: const EdgeInsets.only(right: 3), child: Dot(c, size: 11)),
         const Spacer(),
         Text(
-          '${w.count}${planned > 0 ? '/$planned' : ''} · ${formatHoursMinutes(w.seconds)}${avg == null ? '' : ' · ⚡${avg.toStringAsFixed(1)}'}',
+          '${w.count}${planned > 0 ? '/$planned' : ''} · ${formatHoursMinutes(w.seconds)}${avg == null ? '' : ' · energy ${avg.toStringAsFixed(1)}'}',
           style: mono(11),
         ),
       ]),

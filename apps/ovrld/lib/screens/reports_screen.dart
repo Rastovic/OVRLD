@@ -115,8 +115,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
         );
     return Panel(
       child: Row(children: [
-        stat('Days trained', '${days.length}'),
-        stat('Of plan', pct == null ? '–' : '$pct%', c: (pct ?? 0) >= 90 ? Tone.good : Tone.bone),
+        stat('Days', '${days.length}'),
+        const SizedBox(width: 12),
+        stat('Plan done', pct == null ? '–' : '$pct%', c: (pct ?? 0) >= 90 ? Tone.good : Tone.bone),
+        const SizedBox(width: 12),
         stat('Full weeks', '$streak', c: streak > 0 ? Tone.pr : Tone.bone),
       ]),
     );

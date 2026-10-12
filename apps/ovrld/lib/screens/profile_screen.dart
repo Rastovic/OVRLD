@@ -161,8 +161,8 @@ class ProfileScreen extends StatelessWidget {
               await Clipboard.setData(const ClipboardData(text: 'https://rastovic.github.io/ovrld/privacy/'));
               if (context.mounted) toast(context, 'Link copied. Paste it in your browser.');
             }),
-            InfoRow('Version', '0.1.2'),
-            InfoRow('Licences', '', onTap: () => showLicensePage(context: context, applicationName: 'OVRLD', applicationVersion: '0.1.2')),
+            InfoRow('Version', '0.1.3'),
+            InfoRow('Licences', '', onTap: () => showLicensePage(context: context, applicationName: 'OVRLD', applicationVersion: '0.1.3')),
           ]),
         ],
       ),

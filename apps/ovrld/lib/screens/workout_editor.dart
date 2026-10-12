@@ -305,7 +305,7 @@ class _RestPicker extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Text(
-            'rest ${item.restS == null ? 'default' : item.restS == 0 ? 'off' : '${item.restS! ~/ 60}:${(item.restS! % 60).toString().padLeft(2, '0')}'} ▾',
+            'rest ${item.restS == null ? 'default' : item.restS == 0 ? 'off' : '${item.restS! ~/ 60}:${(item.restS! % 60).toString().padLeft(2, '0')}'} · change',
             style: mono(10.5, color: Tone.bone),
           ),
         ),

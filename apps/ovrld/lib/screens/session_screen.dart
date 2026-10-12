@@ -706,10 +706,11 @@ class _BottomBar extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
         decoration: const BoxDecoration(border: Border(top: BorderSide(color: Tone.line))),
-        child: Row(children: [
+        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          // The only flexible child, so it gets all the spare width and
+          // shrinks only when a large font leaves no room.
           Flexible(child: GhostButton('Exercises', icon: Icons.list, onPressed: onList)),
           const SizedBox(width: 10),
-          const Spacer(),
           FilledButton(
             onPressed: onFinish,
             style: FilledButton.styleFrom(backgroundColor: Tone.bone, shape: const StadiumBorder(), padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
@@ -748,7 +749,7 @@ class _RestOverlay extends StatelessWidget {
     final next = s.ex;
     return Positioned.fill(
       child: Material(
-        color: Tone.ground.withValues(alpha: .97),
+        color: Tone.ground,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 30, 20, 24),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [

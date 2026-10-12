@@ -135,7 +135,13 @@ class _Fact extends StatelessWidget {
   Widget build(BuildContext context) => GestureDetector(
         onTap: onTap,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Lbl(onTap == null ? label : '$label ✎'),
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Lbl(label),
+            if (onTap != null) const Padding(
+              padding: EdgeInsets.only(left: 4),
+              child: Icon(Icons.edit_outlined, size: 11, color: Tone.mute),
+            ),
+          ]),
           Text(value, style: display(24, wdth: 75, wght: 800, color: color)),
         ]),
       );
