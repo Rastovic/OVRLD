@@ -21,6 +21,7 @@ class _OnboardingState extends State<Onboarding> {
   final height = TextEditingController();
   WeightUnit wu = WeightUnit.kg;
   Goal goal = Goal.muscle;
+  Sex? sex;
   bool starter = true;
   bool busy = false;
 
@@ -33,6 +34,7 @@ class _OnboardingState extends State<Onboarding> {
       ..distanceUnit = wu == WeightUnit.kg ? DistanceUnit.km : DistanceUnit.mi
       ..heightUnit = wu == WeightUnit.kg ? HeightUnit.cm : HeightUnit.ftIn
       ..goal = goal
+      ..sex = sex
       ..onboarded = true;
     final h = parseNum(height.text);
     if (h != null && h > 0) p.heightCm = wu == WeightUnit.kg ? h : h * 2.54;
@@ -94,6 +96,15 @@ class _OnboardingState extends State<Onboarding> {
                 ]),
               ),
             ]),
+            const SizedBox(height: 18),
+            const Lbl('Sex (draws your body map)'),
+            const SizedBox(height: 8),
+            ChoiceRow<Sex?>(
+              values: const [Sex.female, Sex.male, Sex.other, null],
+              selected: sex,
+              labelOf: (s) => s?.label ?? 'Skip',
+              onChanged: (s) => setState(() => sex = s),
+            ),
             const SizedBox(height: 18),
             const Lbl('Main goal'),
             const SizedBox(height: 8),

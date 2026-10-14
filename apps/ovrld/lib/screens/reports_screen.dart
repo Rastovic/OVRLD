@@ -8,6 +8,7 @@ import '../ui/charts.dart';
 import '../ui/common.dart';
 import '../ui/kinetic.dart';
 import '../ui/tokens.dart';
+import 'body_view.dart';
 
 enum Range {
   w4('4W', 28),
@@ -32,6 +33,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Range range = Range.w12;
   int? exerciseId;
   Metric metric = Metric.e1rm;
+  bool body = false;
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +51,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
             children: [
               const KText('Reports', size: 44, wdth: 75, wght: 900),
               const SizedBox(height: 10),
+              Segment(
+                values: const ['Charts', 'Body'],
+                selected: body ? 1 : 0,
+                onChanged: (i) => setState(() => body = i == 1),
+              ),
+              const SizedBox(height: 14),
+              if (body)
+                const BodyView()
+              else ...[
               ChoiceRow<Range>(values: Range.values, selected: range, labelOf: (r) => r.label, onChanged: (r) => setState(() => range = r)),
               const SizedBox(height: 14),
               if (d.sessions.isEmpty && d.cardio.isEmpty)
@@ -70,6 +81,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ],
               const SizedBox(height: 12),
               _bodyWeight(app, d, from),
+              ],
             ],
           );
         },
@@ -270,13 +282,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _muscles(AppState app, _Data d, DateTime from) {
-    final counts = <String, int>{};
-    for (final s in d.sets) {
-      if (s.set.warmup || s.sessionStart.isBefore(from)) continue;
-      final m = app.exercises[s.exerciseId]?.muscle;
-      if (m == null) continue;
-      counts[m] = (counts[m] ?? 0) + 1;
-    }
+    final counts = muscleLoad([
+      for (final s in d.sets)
+        if (!s.set.warmup && !s.sessionStart.isBefore(from) && app.exercises[s.exerciseId] != null)
+          (app.exercises[s.exerciseId]!.muscle, app.exercises[s.exerciseId]!.secondary),
+    ], secondaryShare: app.profile.halfSecondary ? .5 : 0)
+      ..remove('Full body');
     if (counts.isEmpty) return const SizedBox.shrink();
     final weeks = ((daysBetween(from, DateTime.now()) + 1) / 7).clamp(1, 1e9);
     final rows = counts.entries.map((e) => (e.key, e.value / weeks)).toList()..sort((a, b) => b.$2.compareTo(a.$2));
@@ -285,7 +296,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         _title('Sets per muscle', side: 'per week'),
         HBars(rows: rows, color: Tone.bone, format: (v) => v.toStringAsFixed(v < 10 ? 1 : 0)),
         const SizedBox(height: 6),
-        Text('Working sets only. 10–20 a week per muscle is a common growth range.', style: mono(10.5)),
+        Text('Working sets only${app.profile.halfSecondary ? ', helper muscles count half' : ''}. 10–20 a week per muscle is a common growth range.', style: mono(10.5)),
       ]),
     );
   }

@@ -6,8 +6,10 @@ import 'package:ovrld/main.dart';
 import 'package:ovrld/screens/cardio_screen.dart';
 import 'package:ovrld/screens/exercise_picker.dart';
 import 'package:ovrld/screens/flow.dart';
+import 'package:ovrld/screens/ready_screen.dart';
 import 'package:ovrld/screens/session_screen.dart';
 import 'package:ovrld/screens/workout_editor.dart';
+import 'package:ovrld/ui/body_map.dart';
 import 'package:ovrld/screens/tour.dart';
 import 'package:ovrld/state/app_state.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -288,5 +290,114 @@ void main() {
       nav.pop();
       await settle(t);
     }
+  });
+
+  testWidgets('REPORTS → BODY: map, neglected, stalls, and the way out of a stall', (t) async {
+    phone(t);
+    final app = (await t.runAsync(() async {
+      final app = await seeded();
+      final bench = app.exercises.values.firstWhere((e) => e.name == 'Bench press');
+      for (final (days, kg) in [(45, 100.0), (30, 102.5), (10, 100.0), (3, 102.5)]) {
+        final sid = await app.repo.startSession(name: 'Push day');
+        final item = await app.repo.addItem(sid, bench.id, repMin: 6, repMax: 8);
+        for (var k = 0; k < 3; k++) {
+          await app.repo.addSet(item, idx: k, kg: kg, reps: 5);
+        }
+        final at = DateTime.now().subtract(Duration(days: days));
+        await app.repo.finishSession(sid, endedAt: at.add(const Duration(hours: 1)));
+        await app.repo.updateSession((await app.repo.fullSession(sid)).session..startedAt = at);
+      }
+      await app.load();
+      return app;
+    }))!;
+    await t.pumpWidget(OvrldApp(state: app));
+    await settle(t);
+    await t.tap(find.text('REPORTS'));
+    await settle(t);
+    await t.tap(find.text('BODY'));
+    await settle(t);
+    expect(t.takeException(), isNull);
+    expect(find.byType(BodyMap), findsNWidgets(2));
+    expect(find.text('15 DAYS'), findsOneWidget);
+
+    await t.tapAt(t.getCenter(find.byType(BodyMap).first) - const Offset(0, 60));
+    await t.pump();
+    expect(find.textContaining('CHEST'), findsWidgets, reason: 'tapping the chest names it');
+
+    await press(t, 'BENCH PRESS');
+    await settle(t);
+    expect(find.text('DELOAD 10%'), findsOneWidget);
+    await press(t, 'DELOAD 10%');
+    await settle(t);
+    expect(t.takeException(), isNull);
+    final bench = app.exercises.values.firstWhere((e) => e.name == 'Bench press');
+    expect(bench.deloadKg, 92.5, reason: '90% of 102.5, to the nearest 2.5 step');
+    expect(find.text('BENCH PRESS'), findsNothing, reason: 'acting on a stall clears it');
+  });
+
+  testWidgets('progress alert settings save', (t) async {
+    phone(t);
+    final app = (await t.runAsync(seeded))!;
+    await t.pumpWidget(OvrldApp(state: app));
+    await settle(t);
+    await t.tap(find.text('YOU'));
+    await settle(t);
+    await t.scrollUntilVisible(find.text('30 d'), 300, scrollable: find.byType(Scrollable).first);
+    await press(t, '6 wk');
+    await settle(t);
+    await press(t, '30 d');
+    await settle(t);
+    await press(t, 'Female');
+    await settle(t);
+    expect(app.profile.femaleFigure, isTrue);
+    expect(app.profile.stallWeeks, 6);
+    expect(app.profile.bodyWindowDays, 30);
+  });
+
+  testWidgets('ready-made: add a workout, then switch to a ready week', (t) async {
+    phone(t);
+    final app = (await t.runAsync(seeded))!;
+    await t.pumpWidget(OvrldApp(state: app));
+    await settle(t);
+    final nav = t.state<NavigatorState>(find.byType(Navigator).first);
+    nav.push(MaterialPageRoute(builder: (_) => const ReadyScreen()));
+    await settle(t);
+    expect(t.takeException(), isNull);
+    await t.ensureVisible(find.text('Add to my workouts').first);
+    await t.pump();
+    await t.tap(find.text('Add to my workouts').first);
+    await settle(t);
+    expect(app.templates.any((x) => x.name == 'Push · chest'), isTrue);
+    await t.dragUntilVisible(find.text('WEEKLY PLANS'), find.byType(ListView).last, const Offset(0, 300));
+    await t.pump();
+    await t.tap(find.text('WEEKLY PLANS'));
+    await settle(t);
+    expect(t.takeException(), isNull);
+    await t.ensureVisible(find.text('USE THIS PLAN').first);
+    await t.pump();
+    await t.tap(find.text('USE THIS PLAN').first);
+    await settle(t);
+    expect(app.activePlan!.name, 'Full body 3×');
+    expect(find.byType(ReadyScreen), findsNothing);
+  });
+
+  testWidgets('body map shows before the first workout and follows sex', (t) async {
+    phone(t);
+    final app = (await t.runAsync(seeded))!;
+    await t.pumpWidget(OvrldApp(state: app));
+    await settle(t);
+    await t.tap(find.text('REPORTS'));
+    await settle(t);
+    await t.tap(find.text('BODY'));
+    await settle(t);
+    expect(t.takeException(), isNull);
+    expect(find.byType(BodyMap), findsNWidgets(2), reason: 'a plain figure, not just text');
+    expect(t.widget<BodyMap>(find.byType(BodyMap).first).female, isFalse);
+    await t.runAsync(() async {
+      await app.repo.saveProfile(app.profile..sex = Sex.female);
+      await app.changed();
+    });
+    await settle(t);
+    expect(t.widget<BodyMap>(find.byType(BodyMap).first).female, isTrue);
   });
 }

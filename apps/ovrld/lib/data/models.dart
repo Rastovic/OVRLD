@@ -19,10 +19,27 @@ class Exercise {
     required this.incrementKg,
     this.archived = false,
     this.custom = false,
-  });
+    List<String>? secondary,
+    this.stallResetAt,
+    this.stallSnoozeUntil,
+    this.deloadKg,
+  }) : secondary = secondary ?? [];
   final int id;
   String name;
   String muscle;
+
+  /// Muscles that work along: half a set each on the body map.
+  List<String> secondary;
+
+  /// When a stall was last acted on (deload, new rep range).
+  DateTime? stallResetAt;
+
+  /// "Keep going": no stall badge until then.
+  DateTime? stallSnoozeUntil;
+
+  /// A deload the lifter chose: the next session starts here instead of at
+  /// the progression target. Cleared when that session is finished.
+  double? deloadKg;
   String equipment;
   ExerciseKind kind;
   double incrementKg;
@@ -40,8 +57,18 @@ class Exercise {
         incrementKg: (r['increment_kg'] as num).toDouble(),
         archived: (r['archived'] as int) == 1,
         custom: (r['custom'] as int) == 1,
+        secondary: splitMuscles(r['secondary'] as String?),
+        stallResetAt: _date(r['stall_reset_at']),
+        stallSnoozeUntil: _date(r['stall_snooze_until']),
+        deloadKg: (r['deload_kg'] as num?)?.toDouble(),
       );
 }
+
+DateTime? _date(Object? ms) => ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms as int);
+
+/// Secondary muscles are stored as one comma-separated column.
+List<String> splitMuscles(String? s) =>
+    s == null || s.isEmpty ? [] : s.split(',').where((m) => m.isNotEmpty).toList();
 
 class SplitTag {
   SplitTag({required this.id, required this.name, required this.color, required this.sort});
@@ -335,6 +362,15 @@ enum Sex {
   final String label;
 }
 
+/// Which figure the body map draws. Unset follows [Profile.sex].
+enum BodyFigure {
+  male('Male'),
+  female('Female');
+
+  const BodyFigure(this.label);
+  final String label;
+}
+
 class Profile {
   Profile({
     this.name = '',
@@ -349,6 +385,11 @@ class Profile {
     this.restDefaultS = 90,
     this.onboarded = false,
     this.tourSeen = false,
+    this.stallWeeks = 3,
+    this.bodyWindowDays = 15,
+    this.halfSecondary = true,
+    this.stallAlerts = true,
+    this.bodyFigure,
   });
   String name;
   DateTime? birthDate;
@@ -362,6 +403,19 @@ class Profile {
   int restDefaultS;
   bool onboarded;
   bool tourSeen;
+
+  /// Weeks without an e1RM gain before a lift is flagged.
+  int stallWeeks;
+
+  /// Days the body map looks back over.
+  int bodyWindowDays;
+
+  /// Secondary muscles count half a set on the body map, or nothing.
+  bool halfSecondary;
+  bool stallAlerts;
+  BodyFigure? bodyFigure;
+
+  bool get femaleFigure => bodyFigure == BodyFigure.female || (bodyFigure == null && sex == Sex.female);
 
   int? ageOn(DateTime today) {
     final b = birthDate;
@@ -384,6 +438,11 @@ class Profile {
         restDefaultS: r['rest_default_s'] as int,
         onboarded: (r['onboarded'] as int) == 1,
         tourSeen: ((r['tour_seen'] as int?) ?? 0) == 1,
+        stallWeeks: (r['stall_weeks'] as int?) ?? 3,
+        bodyWindowDays: (r['body_window_days'] as int?) ?? 15,
+        halfSecondary: ((r['half_secondary'] as int?) ?? 1) == 1,
+        stallAlerts: ((r['stall_alerts'] as int?) ?? 1) == 1,
+        bodyFigure: r['body_figure'] == null ? null : BodyFigure.values.byName(r['body_figure'] as String),
       );
 
   Map<String, Object?> toRow() => {
@@ -400,6 +459,11 @@ class Profile {
         'rest_default_s': restDefaultS,
         'onboarded': onboarded ? 1 : 0,
         'tour_seen': tourSeen ? 1 : 0,
+        'stall_weeks': stallWeeks,
+        'body_window_days': bodyWindowDays,
+        'half_secondary': halfSecondary ? 1 : 0,
+        'stall_alerts': stallAlerts ? 1 : 0,
+        'body_figure': bodyFigure?.name,
       };
 }
 

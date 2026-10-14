@@ -102,6 +102,44 @@ class ProfileScreen extends StatelessWidget {
               save();
             }),
           ]),
+          _Section('Progress alerts', children: [
+            const Lbl('Stall after'),
+            const SizedBox(height: 4),
+            Text('Flag a lift when its best est. 1RM has not gone up for this long.', style: mono(10.5)),
+            const SizedBox(height: 6),
+            ChoiceRow<int>(values: const [2, 3, 4, 6, 8], selected: p.stallWeeks, labelOf: (w) => '$w wk', onChanged: (w) {
+              p.stallWeeks = w;
+              save();
+            }),
+            const SizedBox(height: 14),
+            const Lbl('Body map figure'),
+            const SizedBox(height: 6),
+            ChoiceRow<BodyFigure?>(
+              values: const [null, ...BodyFigure.values],
+              selected: p.bodyFigure,
+              labelOf: (f) => f?.label ?? 'From sex',
+              onChanged: (f) {
+                p.bodyFigure = f;
+                save();
+              },
+            ),
+            const SizedBox(height: 14),
+            const Lbl('Body map window'),
+            const SizedBox(height: 6),
+            ChoiceRow<int>(values: const [7, 15, 30], selected: p.bodyWindowDays, labelOf: (d) => '$d d', onChanged: (d) {
+              p.bodyWindowDays = d;
+              save();
+            }),
+            const SizedBox(height: 6),
+            _SwitchRow('Half sets for helper muscles', 'Triceps get ½ a set from bench, biceps ½ from rows', p.halfSecondary, (v) {
+              p.halfSecondary = v;
+              save();
+            }),
+            _SwitchRow('Stall alerts', 'In the app only. No notifications.', p.stallAlerts, (v) {
+              p.stallAlerts = v;
+              save();
+            }),
+          ]),
           _Section('Units', children: [
             ChoiceRow<WeightUnit>(values: WeightUnit.values, selected: p.weightUnit, labelOf: weightLabel, onChanged: (u) {
               p.weightUnit = u;
@@ -392,5 +430,28 @@ class _WeightLog extends StatelessWidget {
             if (list.length > 6) Text('${list.length - 6} older entries in the Reports trend.', style: mono(10.5)),
           ]);
         },
+      );
+}
+
+/// Title, one line of explanation, a switch. Plain Row: a ListTile inside a
+/// bordered section would hide its own ink.
+class _SwitchRow extends StatelessWidget {
+  const _SwitchRow(this.title, this.body, this.value, this.onChanged);
+  final String title, body;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: mono(13, color: Tone.bone)),
+              Text(body, style: mono(11)),
+            ]),
+          ),
+          const SizedBox(width: 8),
+          Switch(value: value, onChanged: onChanged),
+        ]),
       );
 }

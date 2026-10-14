@@ -193,6 +193,53 @@ class ChoiceRow<T> extends StatelessWidget {
       );
 }
 
+/// Two or three views of one screen: CHARTS | BODY.
+class Segment extends StatelessWidget {
+  const Segment({super.key, required this.values, required this.selected, required this.onChanged});
+  final List<String> values;
+  final int selected;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: Tone.ground,
+          border: Border.all(color: Tone.line),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(children: [
+          for (var i = 0; i < values.length; i++)
+            Expanded(
+              child: Semantics(
+                button: true,
+                selected: i == selected,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onChanged(i),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: i == selected ? Tone.bone : Colors.transparent,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      values[i].toUpperCase(),
+                      textAlign: TextAlign.center,
+                      style: mono(11.5,
+                          color: i == selected ? Tone.ground : Tone.mute,
+                          weight: i == selected ? FontWeight.w600 : FontWeight.w400,
+                          letterSpacing: 1.4),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ]),
+      );
+}
+
 class Dot extends StatelessWidget {
   const Dot(this.color, {super.key, this.size = 10, this.radius = 3});
   final Color? color;

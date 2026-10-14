@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:ovrld_core/ovrld_core.dart';
 
+import '../data/insights.dart';
 import '../data/models.dart';
 import '../data/repo.dart';
+import '../data/seed.dart';
 import '../state/app_state.dart';
 import '../ui/common.dart';
 import '../ui/kinetic.dart';
 import '../ui/tokens.dart';
 import 'flow.dart';
+import 'ready_screen.dart';
 import 'session_detail.dart';
+import 'stall_sheet.dart';
 
 class TodayScreen extends StatelessWidget {
   const TodayScreen({super.key});
@@ -53,8 +57,9 @@ class TodayScreen extends StatelessWidget {
 }
 
 class _TodayData {
-  _TodayData(this.last, this.doneToday, this.cardioToday, this.weekDone, this.weekPlanned);
+  _TodayData(this.last, this.doneToday, this.cardioToday, this.weekDone, this.weekPlanned, this.stalls);
   final Map<int, LastTime?> last;
+  final Map<int, StallInfo> stalls;
   final List<Session> doneToday;
   final List<Cardio> cardioToday;
   final int weekDone, weekPlanned;
@@ -78,13 +83,14 @@ class _TodayData {
       cardio.where((c) => dateOnly(c.startedAt) == today).toList(),
       days.length,
       app.activePlan?.trainingDays ?? 0,
+      t == null ? const {} : (await Insights.load(app)).stalls,
     );
   }
 }
 
 /// "last 100 × 8·8·7·7 → 100 × 8" for one exercise in a plan.
 String lastLine(AppState app, Exercise e, TemplateItem it, LastTime? last) {
-  if (last == null) return 'first time · ${it.sets} × ${it.repMin}–${it.repMax}';
+  if (last == null) return 'first time · ${it.sets} × ${e.kind == ExerciseKind.time ? 'hold' : '${it.repMin}–${it.repMax}'}';
   final work = last.working;
   if (work.isEmpty) return 'no working sets last time';
   final reps = work.map((s) => e.kind == ExerciseKind.time ? '${s.seconds ?? 0}s' : '${s.reps}').join('·');
@@ -121,12 +127,18 @@ class _WorkoutDay extends StatelessWidget {
         Transform.translate(offset: const Offset(-18, 0), child: Marquee(t.name, color: color)),
         const SizedBox(height: 10),
         Row(children: [
-          Expanded(child: Lbl('${t.items.length} exercises · ~${(sets * 2.5 + 5).round()} min')),
+          Expanded(child: Lbl('${t.items.length} exercises · ~${workoutMinutes(sets)} min')),
           GhostButton('Not today?', onPressed: () => pickAnyWorkout(context, offPlan: true)),
         ]),
         const SizedBox(height: 6),
         for (var i = 0; i < t.items.length; i++)
-          _ExerciseRow(item: t.items[i], label: labels[i], color: color, last: data.last[t.items[i].exerciseId]),
+          _ExerciseRow(
+            item: t.items[i],
+            label: labels[i],
+            color: color,
+            last: data.last[t.items[i].exerciseId],
+            stall: data.stalls[t.items[i].exerciseId],
+          ),
         const SizedBox(height: 18),
         BigButton(app.openSession?.templateId == t.id ? 'Resume' : 'Start', color: color, onPressed: () => startWorkout(context, t: t)),
       ],
@@ -157,11 +169,12 @@ List<String?> supersetLabels(List<int?> groups) {
 }
 
 class _ExerciseRow extends StatelessWidget {
-  const _ExerciseRow({required this.item, required this.label, required this.color, required this.last});
+  const _ExerciseRow({required this.item, required this.label, required this.color, required this.last, this.stall});
   final TemplateItem item;
   final String? label;
   final Color color;
   final LastTime? last;
+  final StallInfo? stall;
 
   @override
   Widget build(BuildContext context) {
@@ -183,8 +196,12 @@ class _ExerciseRow extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Expanded(child: Text(e.name.toUpperCase(), style: display(16, wdth: 80, wght: 700, height: 1.1))),
-              Text('${item.sets} × ${item.repMin}–${item.repMax}', style: mono(11)),
+              Text('${item.sets} × ${e.kind == ExerciseKind.time ? 'hold' : '${item.repMin}–${item.repMax}'}', style: mono(11)),
             ]),
+            if (stall != null) ...[
+              const SizedBox(height: 4),
+              StallBadge(stall!, onTap: () => showStallSheet(context, stall!)),
+            ],
             const SizedBox(height: 3),
             Text.rich(TextSpan(children: [
               TextSpan(text: arrow < 0 ? line : line.substring(0, arrow), style: mono(11)),
@@ -270,6 +287,11 @@ class _NoPlan extends StatelessWidget {
         Text('Make your week in the WEEK tab: pick a workout or rest for each day. Or just train now.', style: mono(13)),
         const SizedBox(height: 24),
         BigButton('Quick workout', onPressed: () => pickAnyWorkout(context, offPlan: true)),
+        const SizedBox(height: 10),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: GhostButton('Pick a ready-made week', icon: Icons.auto_awesome_outlined, onPressed: () => openReady(context, plans: true)),
+        ),
       ]);
 }
 

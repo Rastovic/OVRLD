@@ -6,28 +6,30 @@ import '../state/app_state.dart';
 import '../ui/common.dart';
 import '../ui/tokens.dart';
 
-Future<int?> pickExercise(BuildContext context) =>
-    Navigator.of(context).push<int>(MaterialPageRoute(builder: (_) => const ExercisePicker()));
+/// [group] opens the picker on one muscle group, e.g. when swapping a lift.
+Future<int?> pickExercise(BuildContext context, {String? group}) =>
+    Navigator.of(context).push<int>(MaterialPageRoute(builder: (_) => ExercisePicker(group: group)));
 
 class ExercisePicker extends StatefulWidget {
-  const ExercisePicker({super.key, this.manage = false});
+  const ExercisePicker({super.key, this.manage = false, this.group});
 
   /// Library mode (from Profile): tap edits instead of picking.
   final bool manage;
+  final String? group;
   @override
   State<ExercisePicker> createState() => _ExercisePickerState();
 }
 
 class _ExercisePickerState extends State<ExercisePicker> {
   String q = '';
-  String? muscle;
+  late String? group = widget.group;
 
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final all = app.exercises.values
         .where((e) => widget.manage || !e.archived)
-        .where((e) => muscle == null || e.muscle == muscle)
+        .where((e) => group == null || muscleGroups[group]!.contains(e.muscle))
         .where((e) => q.isEmpty || e.name.toLowerCase().contains(q.toLowerCase()))
         .toList()
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
@@ -47,7 +49,7 @@ class _ExercisePickerState extends State<ExercisePicker> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
           child: TextField(
-            autofocus: !widget.manage,
+            autofocus: !widget.manage && widget.group == null,
             style: mono(15, color: Tone.bone),
             decoration: const InputDecoration(hintText: 'Search', prefixIcon: Icon(Icons.search, color: Tone.mute)),
             onChanged: (v) => setState(() => q = v.trim()),
@@ -59,17 +61,17 @@ class _ExercisePickerState extends State<ExercisePicker> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             children: [
-              for (final m in [null, ...muscles])
+              for (final m in [null, ...muscleGroups.keys])
                 Padding(
                   padding: const EdgeInsets.only(right: 6),
                   child: ChoiceChip(
-                    label: Text(m ?? 'All', style: mono(12, color: muscle == m ? Tone.ground : Tone.bone)),
-                    selected: muscle == m,
+                    label: Text(m ?? 'All', style: mono(12, color: group == m ? Tone.ground : Tone.bone)),
+                    selected: group == m,
                     showCheckmark: false,
                     selectedColor: Tone.bone,
                     backgroundColor: Tone.raised,
                     side: const BorderSide(color: Tone.line),
-                    onSelected: (_) => setState(() => muscle = m),
+                    onSelected: (_) => setState(() => group = m),
                   ),
                 ),
             ],
@@ -112,6 +114,7 @@ Future<int?> editExercise(BuildContext context, Exercise? e, {String initialName
   final app = AppScope.read(context);
   final name = TextEditingController(text: e?.name ?? initialName);
   var muscle = e?.muscle ?? 'Chest';
+  final secondary = {...?e?.secondary};
   var equipment = e?.equipment ?? 'Barbell';
   var kind = e?.kind ?? ExerciseKind.weightReps;
   var inc = e?.incrementKg ?? defaultIncrement(equipment);
@@ -138,7 +141,32 @@ Future<int?> editExercise(BuildContext context, Exercise? e, {String initialName
               const SizedBox(height: 14),
               const Lbl('Muscle'),
               const SizedBox(height: 6),
-              ChoiceRow<String>(values: muscles, selected: muscle, labelOf: (m) => m, onChanged: (m) => set(() => muscle = m)),
+              ChoiceRow<String>(
+                values: muscles,
+                selected: muscle,
+                labelOf: (m) => m,
+                onChanged: (m) => set(() {
+                  muscle = m;
+                  secondary.remove(m);
+                }),
+              ),
+              const SizedBox(height: 14),
+              const Lbl('Also works (half a set each on the body map)'),
+              const SizedBox(height: 6),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                for (final m in muscles)
+                  if (m != muscle && m != 'Full body')
+                    FilterChip(
+                      label: Text(m, style: mono(12, color: secondary.contains(m) ? Tone.ground : Tone.bone)),
+                      selected: secondary.contains(m),
+                      showCheckmark: false,
+                      selectedColor: Tone.bone,
+                      backgroundColor: Tone.raised,
+                      side: const BorderSide(color: Tone.line),
+                      shape: const StadiumBorder(),
+                      onSelected: (v) => set(() => v ? secondary.add(m) : secondary.remove(m)),
+                    ),
+              ]),
               const SizedBox(height: 14),
               const Lbl('Equipment'),
               const SizedBox(height: 6),
@@ -202,11 +230,13 @@ Future<int?> editExercise(BuildContext context, Exercise? e, {String initialName
   final step = (kind == ExerciseKind.reps || kind == ExerciseKind.time) ? 0.0 : inc;
   int id;
   if (e == null) {
-    id = await app.repo.addExercise(name: n, muscle: muscle, equipment: equipment, kind: kind, incrementKg: step);
+    id = await app.repo.addExercise(
+        name: n, muscle: muscle, equipment: equipment, kind: kind, incrementKg: step, secondary: [...secondary]);
   } else {
     e
       ..name = n
       ..muscle = muscle
+      ..secondary = [for (final m in muscles) if (secondary.contains(m)) m]
       ..equipment = equipment
       ..kind = kind
       ..incrementKg = step

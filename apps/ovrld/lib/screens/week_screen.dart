@@ -7,6 +7,7 @@ import '../ui/common.dart';
 import '../ui/kinetic.dart';
 import '../ui/tokens.dart';
 import 'flow.dart';
+import 'ready_screen.dart';
 import 'workout_editor.dart';
 
 class WeekScreen extends StatelessWidget {
@@ -52,7 +53,10 @@ class WeekScreen extends StatelessWidget {
                   const SizedBox(height: 10),
                   Text('A plan is your week: a workout, cardio or rest for each day.', style: mono(13)),
                   const SizedBox(height: 16),
-                  GhostButton('Make a plan', icon: Icons.add, onPressed: () => _newPlan(context)),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    GhostButton('Ready-made plan', icon: Icons.auto_awesome_outlined, onPressed: () => openReady(context, plans: true)),
+                    GhostButton('Make my own', icon: Icons.add, onPressed: () => _newPlan(context)),
+                  ]),
                 ]),
               )
             else
@@ -67,6 +71,8 @@ class WeekScreen extends StatelessWidget {
             const SizedBox(height: 26),
             Row(children: [
               const Expanded(child: Lbl('Workouts')),
+              GhostButton('Ready-made', onPressed: () => openReady(context)),
+              const SizedBox(width: 6),
               GhostButton('New', icon: Icons.add, onPressed: () => openWorkoutEditor(context, null)),
             ]),
             const SizedBox(height: 4),
@@ -148,10 +154,16 @@ class WeekScreen extends StatelessWidget {
                 },
               ),
             const SizedBox(height: 8),
-            GhostButton('New plan', icon: Icons.add, onPressed: () {
-              Navigator.pop(c);
-              _newPlan(context);
-            }),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              GhostButton('New plan', icon: Icons.add, onPressed: () {
+                Navigator.pop(c);
+                _newPlan(context);
+              }),
+              GhostButton('Ready-made plan', icon: Icons.auto_awesome_outlined, onPressed: () {
+                Navigator.pop(c);
+                openReady(context, plans: true);
+              }),
+            ]),
           ],
         ),
       ),

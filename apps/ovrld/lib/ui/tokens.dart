@@ -14,6 +14,27 @@ abstract final class Tone {
   static const good = Color(0xFF2FBF71);
 }
 
+/// Body map: working sets per week for one muscle, from none to plenty.
+/// One teal ramp, so the map never competes with the split colours.
+abstract final class Heat {
+  static const none = Color(0xFF232326);
+  static const low = Color(0xFF3B4A47); // under 5
+  static const some = Color(0xFF13806F); // 5-9
+  static const growth = Color(0xFF13B5A6); // 10-20
+  static const high = Color(0xFF7FE8DC); // over 20
+  static const inert = Color(0xFF1F1F22);
+
+  static Color of(double perWeek) => perWeek <= 0
+      ? none
+      : perWeek < 5
+          ? low
+          : perWeek < 10
+              ? some
+              : perWeek <= 20
+                  ? growth
+                  : high;
+}
+
 /// Default split colours. Every one can be recoloured in Profile.
 abstract final class SplitColors {
   static const legs = Color(0xFF3D7BFF);

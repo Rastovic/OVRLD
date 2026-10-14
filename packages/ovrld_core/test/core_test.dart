@@ -142,4 +142,45 @@ void main() {
       );
     });
   });
+
+  group('insights', () {
+    test('muscle load: primary 1, secondary half or nothing', () {
+      final sets = [
+        ('Chest', ['Triceps', 'Front delts']),
+        ('Chest', ['Triceps', 'Front delts']),
+        ('Triceps', <String>[]),
+      ];
+      expect(muscleLoad(sets), {'Chest': 2, 'Triceps': 2, 'Front delts': 1});
+      expect(muscleLoad(sets, secondaryShare: 0), {'Chest': 2, 'Triceps': 1});
+    });
+
+    final today = DateTime(2026, 10, 14);
+    DateTime ago(int d) => today.subtract(Duration(days: d));
+
+    test('flat for longer than the window is a stall', () {
+      final s = findStall([
+        (ago(60), 90), (ago(40), 100), (ago(20), 99), (ago(10), 100), (ago(3), 98),
+      ], today: today, weeks: 3)!;
+      expect(s.best, 100);
+      expect(s.since, ago(40));
+      expect(s.weeks, 5);
+    });
+
+    test('a new best inside the window is progress', () {
+      expect(findStall([(ago(40), 100), (ago(10), 100), (ago(3), 101)], today: today, weeks: 3), isNull);
+    });
+
+    test('needs history before the window and two sessions inside it', () {
+      expect(findStall([(ago(10), 100), (ago(3), 100)], today: today, weeks: 3), isNull, reason: 'new lift');
+      expect(findStall([(ago(40), 100), (ago(3), 90)], today: today, weeks: 3), isNull, reason: 'barely trained');
+      expect(findStall([(ago(80), 100), (ago(60), 100)], today: today, weeks: 3), isNull, reason: 'dropped lift');
+    });
+
+    test('acting on a stall restarts the clock', () {
+      final s = [(ago(40), 100.0), (ago(10), 95.0), (ago(3), 96.0)];
+      expect(findStall(s, today: today, weeks: 3), isNotNull);
+      expect(findStall(s, today: today, weeks: 3, resetAt: ago(12)), isNull);
+      expect(findStall(s, today: today, weeks: 3, resetAt: ago(30)), isNotNull);
+    });
+  });
 }

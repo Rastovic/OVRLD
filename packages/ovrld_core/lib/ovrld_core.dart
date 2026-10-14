@@ -7,3 +7,4 @@ export 'src/units.dart';
 export 'src/progression.dart';
 export 'src/records.dart';
 export 'src/calendar.dart';
+export 'src/insights.dart';

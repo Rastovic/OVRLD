@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:ovrld_core/ovrld_core.dart';
 
+import '../data/insights.dart';
 import '../data/models.dart';
 import '../data/repo.dart';
 import '../services/rest_alerts.dart';
@@ -13,6 +14,7 @@ import '../ui/kinetic.dart';
 import '../ui/tokens.dart';
 import 'exercise_picker.dart';
 import 'finish_screen.dart';
+import 'stall_sheet.dart';
 import 'today_screen.dart' show supersetLabels;
 
 /// The logger. The number is the screen.
@@ -27,6 +29,7 @@ class _SessionScreenState extends State<SessionScreen> with WidgetsBindingObserv
   FullSession? f;
   final last = <int, LastTime?>{}; // by exercise
   final bests = <int, Bests>{}; // by exercise, grows during the session
+  Map<int, StallInfo> stalls = {}; // by exercise, from finished sessions only
   int cursor = 0; // index into f.items
   double kg = 0;
   int reps = 8;
@@ -73,6 +76,7 @@ class _SessionScreenState extends State<SessionScreen> with WidgetsBindingObserv
 
   Future<void> _load({bool first = false}) async {
     final full = await app.repo.fullSession(widget.sessionId);
+    if (first) stalls = (await Insights.load(app)).stalls;
     for (final i in full.items) {
       if (!last.containsKey(i.exerciseId)) {
         final l = await app.repo.lastTime(i.exerciseId, excludeSession: widget.sessionId);
@@ -138,7 +142,10 @@ class _SessionScreenState extends State<SessionScreen> with WidgetsBindingObserv
               incrementKg: e.incrementKg,
               plannedSets: l.setsPlanned,
             );
-      if (target != null) {
+      if (e.deloadKg != null && e.usesWeight) {
+        kg = e.deloadKg!;
+        reps = it.repMax;
+      } else if (target != null) {
         kg = target.kg;
         reps = target.reps;
       } else {
@@ -152,6 +159,17 @@ class _SessionScreenState extends State<SessionScreen> with WidgetsBindingObserv
       if (lastSecs != null) seconds = lastSecs + 5;
       warmup = false;
     }
+    setState(() {});
+  }
+
+  /// After a choice in the stall sheet: the badge goes, a deload or a new
+  /// rep range shows up in the dials straight away.
+  Future<void> _stall(StallInfo info) async {
+    final a = await showStallSheet(context, info, item: item);
+    if (a == null || !mounted) return;
+    stalls = (await Insights.load(app)).stalls;
+    if (!mounted) return;
+    if ((item?.sets ?? const []).isEmpty) _prefill();
     setState(() {});
   }
 
@@ -494,6 +512,11 @@ class _Logger extends StatelessWidget {
               style: mono(11, color: color, weight: FontWeight.w500),
             ),
           ),
+        if (s.stalls[e.id] case final info?)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Align(alignment: Alignment.centerLeft, child: StallBadge(info, onTap: () => s._stall(info))),
+          ),
         Text(
           e.name.toUpperCase(),
           style: display(40, wdth: 70, wght: 850, height: .92),
@@ -617,6 +640,13 @@ class _Hint extends StatelessWidget {
       body = TextSpan(text: e.kind == ExerciseKind.time
           ? 'First time. Hold as long as good form allows.'
           : 'First time. Pick a weight you can do for ${it.repMin}–${it.repMax} clean reps.');
+    } else if (e.deloadKg != null && e.usesWeight) {
+      final bold = mono(11, color: Tone.bone, weight: FontWeight.w600);
+      body = TextSpan(children: [
+        const TextSpan(text: 'Deload: '),
+        TextSpan(text: '${app.w(e.deloadKg!)} ${app.wLabel} × ${it.repMax}', style: bold),
+        const TextSpan(text: ' on every set. Light on purpose; next time progression picks up from here.'),
+      ]);
     } else if (e.kind == ExerciseKind.time) {
       body = TextSpan(text: 'Last time: ${l.working.map((s) => '${s.seconds ?? 0}s').join(' · ')}. Add five seconds.');
     } else {

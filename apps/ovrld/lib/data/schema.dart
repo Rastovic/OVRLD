@@ -1,6 +1,6 @@
-/// Schema v1. Every later change is an additive migration in [migrate]; a
+/// Schema v3. Every later change is an additive migration in [migrate]; a
 /// backup made by an older version must always restore into a newer one.
-const schemaVersion = 2;
+const schemaVersion = 3;
 
 const createStatements = [
   '''CREATE TABLE profile (
@@ -16,7 +16,12 @@ const createStatements = [
     height_unit TEXT NOT NULL DEFAULT 'cm',
     rest_default_s INTEGER NOT NULL DEFAULT 90,
     onboarded INTEGER NOT NULL DEFAULT 0,
-    tour_seen INTEGER NOT NULL DEFAULT 0
+    tour_seen INTEGER NOT NULL DEFAULT 0,
+    stall_weeks INTEGER NOT NULL DEFAULT 3,
+    body_window_days INTEGER NOT NULL DEFAULT 15,
+    half_secondary INTEGER NOT NULL DEFAULT 1,
+    stall_alerts INTEGER NOT NULL DEFAULT 1,
+    body_figure TEXT
   )''',
   '''CREATE TABLE body_weight (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,7 +42,11 @@ const createStatements = [
     kind TEXT NOT NULL,
     increment_kg REAL NOT NULL DEFAULT 2.5,
     archived INTEGER NOT NULL DEFAULT 0,
-    custom INTEGER NOT NULL DEFAULT 0
+    custom INTEGER NOT NULL DEFAULT 0,
+    secondary TEXT NOT NULL DEFAULT '',
+    stall_reset_at INTEGER,
+    stall_snooze_until INTEGER,
+    deload_kg REAL
   )''',
   '''CREATE TABLE template (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -126,6 +135,19 @@ const createStatements = [
 const migrations = <int, List<String>>{
   // v2: the first-run walkthrough has been seen.
   2: ['ALTER TABLE profile ADD COLUMN tour_seen INTEGER NOT NULL DEFAULT 0'],
+  // v3: body map and stall alerts. The muscle names themselves change too;
+  // Repo.remapMuscles does that part, since it needs the seed list.
+  3: [
+    "ALTER TABLE exercise ADD COLUMN secondary TEXT NOT NULL DEFAULT ''",
+    'ALTER TABLE exercise ADD COLUMN stall_reset_at INTEGER',
+    'ALTER TABLE exercise ADD COLUMN stall_snooze_until INTEGER',
+    'ALTER TABLE exercise ADD COLUMN deload_kg REAL',
+    'ALTER TABLE profile ADD COLUMN stall_weeks INTEGER NOT NULL DEFAULT 3',
+    'ALTER TABLE profile ADD COLUMN body_window_days INTEGER NOT NULL DEFAULT 15',
+    'ALTER TABLE profile ADD COLUMN half_secondary INTEGER NOT NULL DEFAULT 1',
+    'ALTER TABLE profile ADD COLUMN stall_alerts INTEGER NOT NULL DEFAULT 1',
+    'ALTER TABLE profile ADD COLUMN body_figure TEXT',
+  ],
 };
 
 /// Tables in dependency order. Backup writes them in this order and restore

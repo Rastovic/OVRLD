@@ -35,6 +35,7 @@ class Repo {
               await db.execute(s);
             }
           }
+          if (from < 3 && to >= 3) await remapMuscles(db);
         },
       ),
     );
@@ -47,14 +48,37 @@ class Repo {
     for (final (name, color) in seedSplits) {
       await db.insert('split_tag', {'name': name, 'color': color.toARGB32(), 'sort': i++});
     }
-    for (final (name, muscle, equipment, kind) in seedExercises) {
-      await db.insert('exercise', {
-        'name': name,
-        'muscle': muscle,
-        'equipment': equipment,
-        'kind': kind,
-        'increment_kg': kind == 'reps' || kind == 'time' ? 0 : defaultIncrement(equipment),
+    for (final x in seedExercises) {
+      await _insertSeedExercise(db, x);
+    }
+  }
+
+  static Future<void> _insertSeedExercise(
+          DatabaseExecutor db, (String, String, String, String, List<String>) x) =>
+      db.insert('exercise', {
+        'name': x.$1,
+        'muscle': x.$2,
+        'equipment': x.$3,
+        'kind': x.$4,
+        'increment_kg': x.$4 == 'reps' || x.$4 == 'time' ? 0 : defaultIncrement(x.$3),
+        'secondary': x.$5.join(','),
       });
+
+  /// v2 → v3: the 12 muscle groups become the 19 the body map draws. Built-in
+  /// exercises take their new muscles from the seed list by name; custom ones
+  /// fall back through [legacyMuscles]; built-ins added in v3 are inserted.
+  static Future<void> remapMuscles(DatabaseExecutor db) async {
+    final have = {for (final r in await db.query('exercise', columns: ['name'])) r['name'] as String};
+    for (final x in seedExercises) {
+      if (have.contains(x.$1)) {
+        await db.update('exercise', {'muscle': x.$2, 'secondary': x.$5.join(',')},
+            where: 'name = ? AND custom = 0', whereArgs: [x.$1]);
+      } else {
+        await _insertSeedExercise(db, x);
+      }
+    }
+    for (final e in legacyMuscles.entries) {
+      await db.update('exercise', {'muscle': e.value}, where: 'muscle = ?', whereArgs: [e.key]);
     }
   }
 
@@ -122,6 +146,7 @@ class Repo {
     required String equipment,
     required ExerciseKind kind,
     required double incrementKg,
+    List<String> secondary = const [],
   }) =>
       db.insert('exercise', {
         'name': name,
@@ -130,6 +155,7 @@ class Repo {
         'kind': kind.name,
         'increment_kg': incrementKg,
         'custom': 1,
+        'secondary': secondary.join(','),
       });
 
   Future<void> updateExercise(Exercise e) => db.update(
@@ -141,9 +167,29 @@ class Repo {
           'kind': e.kind.name,
           'increment_kg': e.incrementKg,
           'archived': e.archived ? 1 : 0,
+          'secondary': e.secondary.join(','),
+          'stall_reset_at': e.stallResetAt?.millisecondsSinceEpoch,
+          'stall_snooze_until': e.stallSnoozeUntil?.millisecondsSinceEpoch,
+          'deload_kg': e.deloadKg,
         },
         where: 'id = ?',
         whereArgs: [e.id],
+      );
+
+  /// Moves every workout's rep range for [exerciseId] to [repMin]-[repMax].
+  Future<void> setRepRange(int exerciseId, int repMin, int repMax) => db.update(
+        'template_item',
+        {'rep_min': repMin, 'rep_max': repMax},
+        where: 'exercise_id = ?',
+        whereArgs: [exerciseId],
+      );
+
+  /// Puts [toId] in place of [fromId] in every workout, sets and reps kept.
+  Future<void> swapExercise(int fromId, int toId) => db.update(
+        'template_item',
+        {'exercise_id': toId},
+        where: 'exercise_id = ?',
+        whereArgs: [fromId],
       );
 
   // ---------------------------------------------------------------- templates
@@ -285,6 +331,43 @@ class Repo {
     ));
   }
 
+  /// Adds a ready-made workout to the lifter's own, editable from then on.
+  /// One already there under that name is reused, not duplicated.
+  Future<int> addReadyWorkout(ReadyWorkout w) async {
+    final have = (await templates()).where((t) => t.name == w.name).firstOrNull;
+    if (have != null) return have.id!;
+    final ex = {for (final e in await exercises()) e.name: e.id};
+    final sp = {for (final s in await splits()) s.name: s.id};
+    return saveTemplate(Template(
+      name: w.name,
+      splitId: sp[w.split],
+      items: [
+        for (final (exName, sets, min, max, grp) in w.items)
+          if (ex[exName] != null) TemplateItem(exerciseId: ex[exName]!, sets: sets, repMin: min, repMax: max, grp: grp),
+      ],
+    ));
+  }
+
+  /// Adds a ready week and the workouts it needs, and makes it the active plan.
+  Future<int> addReadyPlan(ReadyPlan p) async {
+    final ids = <String, int>{};
+    for (final name in p.week.whereType<String>().where((n) => n != 'cardio').toSet()) {
+      ids[name] = await addReadyWorkout(readyWorkouts.firstWhere((w) => w.name == name));
+    }
+    return savePlan(Plan(
+      name: p.name,
+      active: true,
+      days: [
+        for (var i = 0; i < 7; i++)
+          switch (p.week[i]) {
+            null => PlanDay(weekday: i),
+            'cardio' => PlanDay(weekday: i, kind: DayKind.cardio, cardio: CardioActivity.run, note: '30 min easy'),
+            final name => PlanDay(weekday: i, kind: DayKind.workout, templateId: ids[name]),
+          },
+      ],
+    ));
+  }
+
   // ---------------------------------------------------------------- sessions
 
   Future<Session?> openSession() async {
@@ -391,17 +474,27 @@ class Repo {
 
   Future<void> deleteSet(int id) => db.delete('set_entry', where: 'id = ?', whereArgs: [id]);
 
-  Future<void> finishSession(int id, {int? energy, int? feel, String? note, DateTime? endedAt}) => db.update(
-        'session',
-        {
-          'ended_at': (endedAt ?? DateTime.now()).millisecondsSinceEpoch,
-          'energy': energy,
-          'feel': feel,
-          'note': note,
-        },
-        where: 'id = ?',
-        whereArgs: [id],
-      );
+  /// A deload is one session long: finishing a session with working sets
+  /// of that exercise ends it.
+  Future<void> finishSession(int id, {int? energy, int? feel, String? note, DateTime? endedAt}) =>
+      db.transaction((tx) async {
+        await tx.update(
+          'session',
+          {
+            'ended_at': (endedAt ?? DateTime.now()).millisecondsSinceEpoch,
+            'energy': energy,
+            'feel': feel,
+            'note': note,
+          },
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+        await tx.rawUpdate('''
+          UPDATE exercise SET deload_kg = NULL WHERE deload_kg IS NOT NULL AND id IN (
+            SELECT i.exercise_id FROM session_item i JOIN set_entry e ON e.item_id = i.id
+            WHERE i.session_id = ? AND e.warmup = 0)
+        ''', [id]);
+      });
 
   Future<void> updateSession(Session s) => db.update(
         'session',
@@ -571,6 +664,7 @@ class Repo {
           await tx.insert(t, (r as Map).cast<String, Object?>());
         }
       }
+      if (schema < 3) await remapMuscles(tx);
     });
   }
 }
