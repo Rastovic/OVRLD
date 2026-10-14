@@ -235,7 +235,8 @@ void main() {
       final b = key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
       final img = await b.toImage();
       final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
-      File('$out/feature-graphic-1024x500.png') // converted to .jpg for upload.writeAsBytesSync(bytes!.buffer.asUint8List());
+      // Converted to .jpg for upload.
+      File('$out/feature-graphic-1024x500.png').writeAsBytesSync(bytes!.buffer.asUint8List());
     });
   });
 }

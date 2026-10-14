@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The rest-timer notification asks for this icon by name from Dart, so the
+     release resource shrinker cannot see it is used. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_ovrld" />
